@@ -1,0 +1,59 @@
+# apiVersion: serving.kserve.io/v1beta1
+# kind: InferenceService
+# metadata:
+#   name: node-1
+# spec:
+#   predictor:
+#     containers:
+#       - image: k3d-registry.localhost:12000/test-model@sha256:ad4336e243999703a66923b11ed101466f53e6ee74589b9882ce0735e9df55ff
+# ---
+# apiVersion: serving.kserve.io/v1beta1
+# kind: InferenceService
+# metadata:
+#   name: node-2
+# spec:
+#   predictor:
+#     containers:
+#       - image: k3d-registry.localhost:12000/test-model@sha256:ad4336e243999703a66923b11ed101466f53e6ee74589b9882ce0735e9df55ff
+# ---
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    name: model
+  name: mulyiply-2
+spec:
+  containers:
+  - image: k3d-registry.localhost:12000/test-model:latest
+    imagePullPolicy: Always
+    name: test
+    ports:
+    - containerPort: 8080
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: multiply-2
+spec:
+  selector:
+    name: model
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 8080
+  type: ClusterIP
+---
+apiVersion: serving.kserve.io/v1alpha1
+kind: InferenceGraph
+metadata:
+  name: model-chainer
+spec:
+  nodes:
+    root:
+      routerType: Sequence
+      steps:
+        - serviceUrl: http://multiply-2.default.svc.cluster.local/v2/models/model/infer
+        - serviceUrl: http://multiply-2.default.svc.cluster.local/v2/models/model/infer
+          data: $response.body.outputs
